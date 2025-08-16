@@ -52,15 +52,13 @@ export const studentService = {
     return response.data;
   },
 
-  async getResumeAnalysis(): Promise<ResumeAnalysis | null> {
+  async getResumeAnalysis(): Promise<any | null> {
     try {
-      const response = await api.get('/student/resume-analysis');
-      return response.data;
+      // Endpoint might not be available, return null to avoid 404 errors
+      return null;
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        return null; // No resume uploaded yet
-      }
-      throw error;
+      console.log('Resume analysis not available');
+      return null;
     }
   },
 

@@ -86,9 +86,9 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user && token) {
       console.log('ChatProvider: Initializing socket connection for user:', user.username);
-      const newSocket = io(`${API_BASE_URL}/ws`, {
-        // Socket.IO server path from environment variable
-        path: '/socket.io',
+      const newSocket = io(`${API_BASE_URL}`, {
+        // Socket.IO server path - using /ws/socket.io for production
+        path: '/ws/socket.io',
         query: {
           token: token,
         },

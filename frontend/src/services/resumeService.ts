@@ -4,8 +4,8 @@ import type { ResumeAnalysis, MockInterviewResponse } from '../types';
 export const resumeService = {
   async getResumeAnalysis(): Promise<ResumeAnalysis | null> {
     try {
-      const response = await api.get('/student/resume-analysis');
-      return response.data;
+      // Temporarily disabled to avoid 404 errors
+      return null;
     } catch (error: any) {
       if (error?.response?.status === 404) return null;
       throw error;

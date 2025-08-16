@@ -1,18 +1,18 @@
 # ResuMatch - AI-Powered Resume-Job Matching Platform
 
 🚀 **Status**: Live & Deployed  
-📱 **Frontend**: [https://resumatch-frontend-hazel.vercel.app](https://resumatch-frontend-hazel.vercel.app)  
+📱 **Frontend**: [https://resumatch-front-4nts.vercel.app](https://resumatch-front-4nts.vercel.app)  
 🔧 **Backend**: [https://resumatch-backend-q5qo.onrender.com](https://resumatch-backend-q5qo.onrender.com)  
 🗄️ **Database**: MongoDB Atlas  
 
-[![Live Demo](https://img.shields.io/badge/Live%20Demo-Frontend-000000)](https://resumatch-frontend-hazel.vercel.app)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Frontend-000000)](https://resumatch-front-4nts.vercel.app)
 [![API Status](https://img.shields.io/badge/API%20Status-Backend-46e3b7)](https://resumatch-backend-q5qo.onrender.com/healthz)
-[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717)](https://github.com/bipaulr/ResuMatch)  
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-181717)](https://github.com/josephshibumathew/resumatch-front)  
 
 ## 🎯 Try It Now
 
 ### 🌐 Live Demo
-**Frontend**: [https://resumatch-frontend-hazel.vercel.app](https://resumatch-frontend-hazel.vercel.app)
+**Frontend**: [https://resumatch-front-4nts.vercel.app](https://resumatch-front-4nts.vercel.app)
 
 ### 📋 Test Features:
 1. **Student Experience**:

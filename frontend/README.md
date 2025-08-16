@@ -9,7 +9,14 @@ Currently, two official plugins are available:
 
 # ResuMatch Frontend
 
+🚀 **Live Demo**: [https://resumatch-front-4nts.vercel.app](https://resumatch-front-4nts.vercel.app)
+
 A modern React application built with Vite, TypeScript, and Tailwind CSS for the ResuMatch job matching platform.
+
+## 🌐 Live Application
+- **Frontend**: [https://resumatch-front-4nts.vercel.app](https://resumatch-front-4nts.vercel.app)
+- **Backend API**: [https://resumatch-backend-q5qo.onrender.com](https://resumatch-backend-q5qo.onrender.com)
+- **GitHub Repository**: [https://github.com/josephshibumathew/resumatch-front](https://github.com/josephshibumathew/resumatch-front)
 
 ## 🚀 Project Structure
 
