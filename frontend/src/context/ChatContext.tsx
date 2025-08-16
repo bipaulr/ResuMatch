@@ -82,100 +82,213 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
     fetchChatRooms();
   }, [fetchChatRooms]);
 
-  // Initialize socket connection
+  // Initialize socket connection with multiple path fallbacks
   useEffect(() => {
     if (user && token) {
       console.log('ChatProvider: Initializing socket connection for user:', user.username);
       
-      // Get API base URL and socket path from environment
+      // Get API base URL from environment - prioritize production URL
       const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
-      const SOCKET_PATH = import.meta.env.VITE_SOCKET_PATH || '/ws/socket.io';
-      
       console.log('ChatProvider: Connecting to:', API_URL);
-      console.log('ChatProvider: Using socket path:', SOCKET_PATH);
+      console.log('ChatProvider: Environment:', import.meta.env.MODE);
       
-      const newSocket = io(API_URL, {
-        // Socket.IO server path - using environment variable
-        path: SOCKET_PATH,
-        query: {
-          token: token,
-        },
-        extraHeaders: {
-          'Authorization': `Bearer ${token}`
-        },
-        // Use polling first, then upgrade to websocket for better compatibility
-        transports: ['polling', 'websocket'],
-        // Increase timeout for production
-        timeout: 30000,
-        // Enable reconnection
-        reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 1000,
-        // Enable credentials for CORS
-        withCredentials: true,
-      });
+      // Try multiple Socket.IO paths in order of preference
+      const SOCKET_PATHS = [
+        '/socket.io',        // Standard Socket.IO path
+        '/ws/socket.io',     // WebSocket prefixed path
+        '/socketio',         // Alternative path
+        '/ws/socketio',      // WebSocket alternative
+        '/api/socket.io'     // API prefixed path
+      ];
+      
+      let currentSocket: Socket | null = null;
+      let pathIndex = 0;
+      
+      const tryConnection = (pathIndex: number): Socket => {
+        const SOCKET_PATH = SOCKET_PATHS[pathIndex] || '/socket.io';
+        console.log(`ChatProvider: Attempting connection with path: ${SOCKET_PATH} (attempt ${pathIndex + 1}/${SOCKET_PATHS.length})`);
+        
+        const newSocket = io(API_URL, {
+          // Use current Socket.IO path
+          path: SOCKET_PATH,
+          query: {
+            token: token,
+          },
+          extraHeaders: {
+            'Authorization': `Bearer ${token}`
+          },
+          // Force websocket for production (more reliable than polling)
+          transports: ['websocket', 'polling'],
+          // Enable credentials for CORS
+          withCredentials: true,
+          // Reconnection settings for production
+          reconnection: false, // Disable auto-reconnection for path testing
+          // Increase timeout for production
+          timeout: 10000, // Shorter timeout for path testing
+          // Force new connection
+          forceNew: true
+        });
+        
+        return newSocket;
+      };
+      
+      const attemptConnection = () => {
+        if (pathIndex >= SOCKET_PATHS.length) {
+          console.error('❌ All Socket.IO paths failed. Connection unsuccessful.');
+          return;
+        }
+        
+        currentSocket = tryConnection(pathIndex);
+        
+        currentSocket.on('connect', () => {
+          console.log(`✅ Connected to chat server using path: ${SOCKET_PATHS[pathIndex]}`);
+          console.log('🔗 Socket ID:', currentSocket?.id);
+          console.log('🚀 Transport:', currentSocket?.io.engine.transport.name);
+          setIsConnected(true);
+          
+          // Enable reconnection now that we found a working path
+          currentSocket!.io.opts.reconnection = true;
+          currentSocket!.io.opts.reconnectionAttempts = 10;
+          currentSocket!.io.opts.reconnectionDelay = 1000;
+          currentSocket!.io.opts.reconnectionDelayMax = 5000;
+        });
 
-      newSocket.on('connect', () => {
-        console.log('✅ Connected to chat server');
+        currentSocket.on('disconnect', (reason) => {
+          console.log('❌ Disconnected from chat server:', reason);
+          setIsConnected(false);
+        });
+
+        currentSocket.on('connect_error', (error) => {
+          console.error(`❌ Connection error with path ${SOCKET_PATHS[pathIndex]}:`, error.message);
+          
+          // Try next path
+          pathIndex++;
+          currentSocket?.close();
+          
+          if (pathIndex < SOCKET_PATHS.length) {
+            console.log(`� Trying next path: ${SOCKET_PATHS[pathIndex]}`);
+            setTimeout(attemptConnection, 1000); // Wait 1 second before trying next path
+          } else {
+            console.error('❌ All Socket.IO connection paths failed');
+            setIsConnected(false);
+          }
+        });
+        
+        return currentSocket;
+      };
+      
+      attemptConnection();
+      
+      // Set up handlers when connection is successful
+      let finalSocket: Socket | null = null;
+      
+      const setupEventHandlers = (connectedSocket: Socket) => {
+        connectedSocket.on('new_message', (message: Message) => {
+          setMessages((prev) => [...prev, message]);
+          if (message.room_id !== currentRoom) {
+            setUnreadCount((prev) => prev + 1);
+          }
+        });
+
+        connectedSocket.on('chat_history', ({ room_id, messages: roomMessages }: { room_id: string; messages: Message[] }) => {
+          if (room_id === currentRoom) {
+            setMessages(roomMessages);
+          }
+        });
+
+        connectedSocket.on('error', (error: { msg: string }) => {
+          console.error('Chat error:', error.msg);
+        });
+
+        connectedSocket.on('user_typing', ({ userId, roomId }: { userId: string; roomId: string }) => {
+          if (roomId === currentRoom && userId !== user.username) {
+            setTypingUsers((prev) => [...prev.filter(id => id !== userId), userId]);
+            
+            // Remove typing indicator after 3 seconds
+            setTimeout(() => {
+              setTypingUsers((prev) => prev.filter(id => id !== userId));
+            }, 3000);
+          }
+        });
+
+        connectedSocket.on('user_stopped_typing', ({ userId, roomId }: { userId: string; roomId: string }) => {
+          if (roomId === currentRoom) {
+            setTypingUsers((prev) => prev.filter(id => id !== userId));
+          }
+        });
+
+        connectedSocket.on('room_joined', ({ roomId }: { roomId: string }) => {
+          console.log(`✅ Joined room: ${roomId}`);
+        });
+
+        connectedSocket.on('room_left', ({ roomId }: { roomId: string }) => {
+          console.log(`✅ Left room: ${roomId}`);
+        });
+        
+        setSocket(connectedSocket);
+        finalSocket = connectedSocket;
+      };
+      
+      // Update the connection logic to call setupEventHandlers
+      currentSocket = tryConnection(pathIndex);
+      
+      currentSocket.on('connect', () => {
+        console.log(`✅ Connected to chat server using path: ${SOCKET_PATHS[pathIndex]}`);
+        console.log('🔗 Socket ID:', currentSocket?.id);
+        console.log('🚀 Transport:', currentSocket?.io.engine.transport.name);
         setIsConnected(true);
+        
+        // Enable reconnection now that we found a working path
+        currentSocket!.io.opts.reconnection = true;
+        currentSocket!.io.opts.reconnectionAttempts = 10;
+        currentSocket!.io.opts.reconnectionDelay = 1000;
+        currentSocket!.io.opts.reconnectionDelayMax = 5000;
+        
+        // Set up all event handlers
+        setupEventHandlers(currentSocket!);
       });
 
-      newSocket.on('disconnect', (reason) => {
+      currentSocket.on('disconnect', (reason) => {
         console.log('❌ Disconnected from chat server:', reason);
         setIsConnected(false);
       });
 
-      newSocket.on('connect_error', (error) => {
-        console.error('❌ Connection error:', error);
-        setIsConnected(false);
-      });
-
-      newSocket.on('new_message', (message: Message) => {
-        setMessages((prev) => [...prev, message]);
-        if (message.room_id !== currentRoom) {
-          setUnreadCount((prev) => prev + 1);
-        }
-      });
-
-      newSocket.on('chat_history', ({ room_id, messages: roomMessages }: { room_id: string; messages: Message[] }) => {
-        if (room_id === currentRoom) {
-          setMessages(roomMessages);
-        }
-      });
-
-      newSocket.on('error', (error: { msg: string }) => {
-        console.error('Chat error:', error.msg);
-      });
-
-      newSocket.on('user_typing', ({ userId, roomId }: { userId: string; roomId: string }) => {
-        if (roomId === currentRoom && userId !== user.username) {
-          setTypingUsers((prev) => [...prev.filter(id => id !== userId), userId]);
-          
-          // Remove typing indicator after 3 seconds
+      currentSocket.on('connect_error', (error) => {
+        console.error(`❌ Connection error with path ${SOCKET_PATHS[pathIndex]}:`, error.message);
+        
+        // Try next path
+        pathIndex++;
+        currentSocket?.close();
+        
+        if (pathIndex < SOCKET_PATHS.length) {
+          console.log(`🔄 Trying next path: ${SOCKET_PATHS[pathIndex]}`);
           setTimeout(() => {
-            setTypingUsers((prev) => prev.filter(id => id !== userId));
-          }, 3000);
+            currentSocket = tryConnection(pathIndex);
+            // Re-attach event handlers for the new connection attempt
+            currentSocket.on('connect', () => {
+              console.log(`✅ Connected to chat server using path: ${SOCKET_PATHS[pathIndex]}`);
+              setIsConnected(true);
+              setupEventHandlers(currentSocket!);
+            });
+            
+            currentSocket.on('connect_error', (error) => {
+              console.error(`❌ Connection error with path ${SOCKET_PATHS[pathIndex]}:`, error.message);
+              pathIndex++;
+              if (pathIndex >= SOCKET_PATHS.length) {
+                console.error('❌ All Socket.IO connection paths failed');
+                setIsConnected(false);
+              }
+            });
+          }, 1000);
+        } else {
+          console.error('❌ All Socket.IO connection paths failed');
+          setIsConnected(false);
         }
       });
-
-      newSocket.on('user_stopped_typing', ({ userId, roomId }: { userId: string; roomId: string }) => {
-        if (roomId === currentRoom) {
-          setTypingUsers((prev) => prev.filter(id => id !== userId));
-        }
-      });
-
-      newSocket.on('room_joined', ({ roomId }: { roomId: string }) => {
-        console.log(`✅ Joined room: ${roomId}`);
-      });
-
-      newSocket.on('room_left', ({ roomId }: { roomId: string }) => {
-        console.log(`✅ Left room: ${roomId}`);
-      });
-
-      setSocket(newSocket);
 
       return () => {
-        newSocket.close();
+        finalSocket?.close();
+        currentSocket?.close();
       };
     }
   }, [user, token]);
