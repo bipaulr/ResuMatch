@@ -1,5 +1,5 @@
 import api from './api';
-import type { Job, ResumeAnalysis, MockInterviewResponse } from '../types';
+import type { Job, MockInterviewResponse } from '../types';
 
 export interface StudentStats {
   resume_score: number | null;
