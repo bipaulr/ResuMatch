@@ -62,5 +62,6 @@ PyPDF2
 python-jose[cryptography]
 passlib[bcrypt]
 pymongo[srv]
+motor
 python-socketio[asyncio_client]
 aiohttp
