@@ -48,9 +48,12 @@ sio = socketio.AsyncServer(
     engineio_logger=True
 )
 
-# Create the ASGI application. Export this as module-level 'app' so either
-# `uvicorn resume_api.main:app` or `python -m resume_api.main` serve sockets + API.
-app = socketio.ASGIApp(sio, other_asgi_app=api)
+# Build the main ASGI application.
+# We want the Socket.IO endpoint to be available at /ws/socket.io, so we mount
+# the Socket.IO ASGI app under the /ws prefix (leaving the socketio_path as default "socket.io").
+app = api
+sio_app = socketio.ASGIApp(sio, socketio_path="socket.io")
+app.mount("/ws", sio_app)
 
 # Initialize chat service
 chat_service = ChatService()
