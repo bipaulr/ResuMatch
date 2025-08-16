@@ -18,8 +18,23 @@ from typing import Optional
 api = FastAPI()
 
 # Get allowed origins from environment variable for production CORS
-ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:3000,*")
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:3000,https://resumatch-front.vercel.app,https://*.vercel.app")
 ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",")]
+
+# For development, allow all localhost origins
+if os.getenv("ENVIRONMENT") != "production":
+    ALLOWED_ORIGINS.extend([
+        "http://localhost:5173",
+        "http://localhost:5174", 
+        "http://localhost:5175",
+        "http://localhost:5176",
+        "http://localhost:3000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
+        "http://127.0.0.1:5175", 
+        "http://127.0.0.1:5176",
+        "http://127.0.0.1:3000"
+    ])
 
 api.add_middleware(
     CORSMiddleware,
@@ -41,12 +56,14 @@ api.include_router(recruiter_router, prefix="/recruiter", tags=["Recruiter"])
 api.include_router(job_router, prefix="/jobs", tags=["Jobs"])
 api.include_router(chat_router, prefix="/chat", tags=["Chat"])
 
-# Initialize Socket.IO Server with authentication
+# Initialize Socket.IO Server with authentication and proper CORS
 sio = socketio.AsyncServer(
     async_mode="asgi",
     cors_allowed_origins=ALLOWED_ORIGINS,
-    logger=True,
-    engineio_logger=True
+    logger=False,  # Disable verbose logging for production
+    engineio_logger=False,
+    ping_timeout=60,
+    ping_interval=25
 )
 
 # Create the main ASGI application that wraps FastAPI with Socket.IO

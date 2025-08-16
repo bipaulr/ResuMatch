@@ -86,19 +86,33 @@ export const ChatProvider: React.FC<ChatProviderProps> = ({ children }) => {
   useEffect(() => {
     if (user && token) {
       console.log('ChatProvider: Initializing socket connection for user:', user.username);
-      const socketPath = import.meta.env.VITE_SOCKET_PATH || '/ws/socket.io';
-      console.log('ChatProvider: Using socket path:', socketPath);
-      const newSocket = io(`${API_BASE_URL}`, {
+      
+      // Get API base URL and socket path from environment
+      const API_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+      const SOCKET_PATH = import.meta.env.VITE_SOCKET_PATH || '/ws/socket.io';
+      
+      console.log('ChatProvider: Connecting to:', API_URL);
+      console.log('ChatProvider: Using socket path:', SOCKET_PATH);
+      
+      const newSocket = io(API_URL, {
         // Socket.IO server path - using environment variable
-        path: socketPath,
+        path: SOCKET_PATH,
         query: {
           token: token,
         },
         extraHeaders: {
           'Authorization': `Bearer ${token}`
         },
-        // Let client negotiate transports (polling -> websocket) to maximize compatibility
-        timeout: 20000,
+        // Use polling first, then upgrade to websocket for better compatibility
+        transports: ['polling', 'websocket'],
+        // Increase timeout for production
+        timeout: 30000,
+        // Enable reconnection
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 1000,
+        // Enable credentials for CORS
+        withCredentials: true,
       });
 
       newSocket.on('connect', () => {
