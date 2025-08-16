@@ -162,14 +162,10 @@ async def join_room(sid, data):
         # Get recent messages
         messages = await chat_service.get_messages(room_id, limit=50)
         
-        # Send chat history to the user
+        # Send chat history to the user - use model's json() method for proper serialization
         messages_dict = []
         for msg in messages:
-            msg_dict = msg.dict()
-            # Convert datetime to string for JSON serialization
-            if isinstance(msg_dict.get('timestamp'), datetime):
-                msg_dict['timestamp'] = msg_dict['timestamp'].isoformat()
-            messages_dict.append(msg_dict)
+            messages_dict.append(msg.dict())
         
         await sio.emit("chat_history", {
             "room_id": room_id,

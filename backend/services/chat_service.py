@@ -137,6 +137,12 @@ class ChatService:
         
         for room in rooms:
             room["id"] = str(room.pop("_id"))
+            # Convert datetime objects to ISO strings for JSON serialization
+            if "created_at" in room and isinstance(room["created_at"], datetime):
+                room["created_at"] = room["created_at"].isoformat()
+            if "last_message_at" in room and isinstance(room["last_message_at"], datetime):
+                room["last_message_at"] = room["last_message_at"].isoformat()
+                
             # Get last message preview
             last_message = await self.messages_collection.find_one(
                 {"room_id": room["id"]},
@@ -146,7 +152,7 @@ class ChatService:
                 room["last_message"] = {
                     "content": last_message["content"],
                     "sender_id": last_message["sender_id"],
-                    "timestamp": last_message["timestamp"]
+                    "timestamp": last_message["timestamp"].isoformat() if isinstance(last_message["timestamp"], datetime) else last_message["timestamp"]
                 }
                 
         return rooms

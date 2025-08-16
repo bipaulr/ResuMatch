@@ -16,6 +16,13 @@ class Message(MessageCreate):
     timestamp: datetime = Field(default_factory=datetime.utcnow)
     read: bool = Field(default=False)
     
+    def dict(self, **kwargs):
+        """Override dict method to ensure datetime serialization"""
+        data = super().dict(**kwargs)
+        if isinstance(data.get('timestamp'), datetime):
+            data['timestamp'] = data['timestamp'].isoformat()
+        return data
+    
     class Config:
         populate_by_name = True
         json_encoders = {
