@@ -48,12 +48,9 @@ sio = socketio.AsyncServer(
     engineio_logger=True
 )
 
-# Build the main ASGI application.
-# We want the Socket.IO endpoint to be available at /ws/socket.io, so we mount
-# the Socket.IO ASGI app under the /ws prefix (leaving the socketio_path as default "socket.io").
-app = api
-sio_app = socketio.ASGIApp(sio, socketio_path="socket.io")
-app.mount("/ws", sio_app)
+# Create the main ASGI application that wraps FastAPI with Socket.IO
+# The Socket.IO path will be /ws/socket.io
+app = socketio.ASGIApp(sio, other_asgi_app=api, socketio_path="ws/socket.io")
 
 # Initialize chat service
 chat_service = ChatService()
