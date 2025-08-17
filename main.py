@@ -49,11 +49,16 @@ try:
     backend_main = _load_backend(BACKEND_MAIN_PATH, "resumatch_backend_main")
     loaded_app = getattr(backend_main, "app", None)
     if loaded_app is None:
-        raise AttributeError("'app' not found in backend/main.py")
-    app = loaded_app  # type: ignore[assignment]
+        # Try 'api' if 'app' doesn't exist
+        loaded_app = getattr(backend_main, "api", None)
+    if loaded_app is None:
+        print("⚠️ WARNING: Neither 'app' nor 'api' found in backend/main.py")
+    else:
+        app = loaded_app
+        print(f"✅ Loaded backend app: {type(app)}")
 except Exception as e:
-    # Keep fallback `app`; print reason for visibility in logs
-    print(f"[main.py] Using fallback app due to error: {e}")
+    print(f"❌ Failed to load backend: {e}")
+    # Keep fallback app
 
 if __name__ == "__main__":
     import uvicorn
