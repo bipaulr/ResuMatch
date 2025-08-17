@@ -18,7 +18,7 @@ from typing import Optional
 api = FastAPI()
 
 # Get allowed origins from environment variable for production CORS
-ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:3000,https://resumatch-front.vercel.app,https://*.vercel.app,https://resumatch-front-git-main.vercel.app")
+ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:3000,https://resumatch-front.vercel.app,https://*.vercel.app,https://resumatch-front-git-main.vercel.app,https://resumatch-front-production.up.railway.app")
 ALLOWED_ORIGINS = [origin.strip() for origin in ALLOWED_ORIGINS_ENV.split(",")]
 
 # For development, allow all localhost origins
@@ -43,13 +43,52 @@ print(f"🌐 CORS Allowed Origins: {ALLOWED_ORIGINS}")
 if os.getenv("ENVIRONMENT") != "production":
     ALLOWED_ORIGINS.append("*")
 
+# Enhanced CORS middleware with redirect handling
 api.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # Add explicit handling for preflight OPTIONS requests
+    expose_headers=["*"],
+    max_age=86400,  # Cache preflight for 24 hours
 )
+
+# Custom middleware to handle trailing slash redirects with CORS
+from fastapi import Request, Response
+from fastapi.responses import RedirectResponse
+import asyncio
+
+@api.middleware("http")
+async def cors_redirect_middleware(request: Request, call_next):
+    """
+    Handle redirects while preserving CORS headers for preflight requests.
+    """
+    # Handle OPTIONS requests for CORS preflight
+    if request.method == "OPTIONS":
+        response = await call_next(request)
+        return response
+    
+    # Check if this is a trailing slash redirect case
+    path = str(request.url.path)
+    if path.endswith("/") and path != "/" and len(path) > 1:
+        # Remove trailing slash and check if route exists
+        new_path = path.rstrip("/")
+        if new_path in ["/jobs", "/auth", "/student", "/recruiter", "/chat"]:
+            # Redirect but preserve CORS headers
+            response = RedirectResponse(url=str(request.url).replace(path, new_path), status_code=307)
+            # Add CORS headers to redirect response
+            origin = request.headers.get("origin")
+            if origin and origin in ALLOWED_ORIGINS:
+                response.headers["Access-Control-Allow-Origin"] = origin
+                response.headers["Access-Control-Allow-Credentials"] = "true"
+                response.headers["Access-Control-Allow-Methods"] = "*"
+                response.headers["Access-Control-Allow-Headers"] = "*"
+            return response
+    
+    response = await call_next(request)
+    return response
 
 # Health check endpoint for Render
 @api.get("/healthz")
@@ -89,6 +128,21 @@ api.include_router(student_router, prefix="/student", tags=["Student"])
 api.include_router(recruiter_router, prefix="/recruiter", tags=["Recruiter"])
 api.include_router(job_router, prefix="/jobs", tags=["Jobs"])
 api.include_router(chat_router, prefix="/chat", tags=["Chat"])
+
+# Additional health check endpoints
+@api.get("/health")
+async def health_check():
+    return {
+        "status": "healthy", 
+        "message": "ResuMatch API is running",
+        "cors_origins": len(ALLOWED_ORIGINS),
+        "environment": os.getenv("ENVIRONMENT", "development")
+    }
+
+# Jobs health check
+@api.get("/jobs/health")  
+async def jobs_health():
+    return {"status": "healthy", "message": "Jobs API is accessible"}
 
 # Initialize Socket.IO Server with authentication and proper CORS for production
 sio = socketio.AsyncServer(

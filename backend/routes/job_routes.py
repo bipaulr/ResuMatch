@@ -30,14 +30,15 @@ async def create_job(job: Job, current_user: User = Depends(get_current_user)):
     else:
         raise HTTPException(status_code=500, detail="Failed to add job")
 
-@router.get("/", response_model=List[Job])
+@router.get("")
 async def list_jobs(
-    skip: int = Query(default=0, ge=0),
-    limit: int = Query(default=20, ge=1, le=100),
-    location: Optional[str] = None,
-    company: Optional[str] = None,
-    skills: Optional[List[str]] = Query(None),
-    status: Optional[str] = Query(default="active")
+    current_user: dict = Depends(get_current_user),
+    skip: int = Query(0, ge=0, description="Number of items to skip"),
+    limit: int = Query(10, ge=1, le=100, description="Number of items to return"),
+    location: Optional[str] = Query(None, description="Filter by location"),
+    company: Optional[str] = Query(None, description="Filter by company"),
+    skills: Optional[str] = Query(None, description="Filter by skills (comma-separated)"),
+    status: Optional[str] = Query("active", description="Filter by job status")
 ):
     """
     Get all active job postings with optional filtering and pagination.
