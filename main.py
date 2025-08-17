@@ -55,6 +55,8 @@ try:
         print("⚠️ WARNING: Neither 'app' nor 'api' found in backend/main.py")
     else:
         app = loaded_app
+        # Also expose under 'api' name for compatibility with Procfile configs
+        api = app  # type: ignore[assignment]
         print(f"✅ Loaded backend app: {type(app)}")
 except Exception as e:
     print(f"❌ Failed to load backend: {e}")
