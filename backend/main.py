@@ -15,7 +15,7 @@ from datetime import datetime
 from typing import Optional
 
 # Create the base FastAPI app (mounted under Socket.IO ASGI wrapper)
-api = FastAPI()
+api = FastAPI(redirect_slashes=False)
 
 # Get allowed origins from environment variable for production CORS
 ALLOWED_ORIGINS_ENV = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:5174,http://localhost:5175,http://localhost:5176,http://localhost:3000,https://resumatch-front.vercel.app,https://*.vercel.app,https://resumatch-front-git-main.vercel.app,https://resumatch-front-production.up.railway.app")
